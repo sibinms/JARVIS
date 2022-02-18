@@ -4,7 +4,7 @@ from rest_framework import routers
 from slackbot import views
 
 urlpatterns = [
-    path('test/', views.Test.as_view(), name='test'),
+    path('github-webhook/', views.GithubWebhookAPIView.as_view(), name='github-webhook'),
 ]
 
 router = routers.SimpleRouter()
