@@ -1,8 +1,13 @@
 from pprint import pprint
+import json
+import sys
+import requests
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+
+
 # Create your views here.
 
 
@@ -12,11 +17,13 @@ class GithubWebhookAPIView(APIView):
     {
     "action":
     "pr":
+    "pr_title":
     "reviewers":
     "created_by":
     }
     """
     PR_ACTIONS = ["opened", "reopened", "review_requested"]
+    SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/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"
 
     def get_pull_request_data(self, request):
         pull_request_data = {}
@@ -45,5 +52,43 @@ class GithubWebhookAPIView(APIView):
         pull_request_data, is_valid_pr = self.get_pull_request_data(request)
         if is_valid_pr:
             pprint(pull_request_data)
+            slack_data = {
+                "username": "JARVIS",
+                # "channel" : "#somerandomcahnnel",
+                "text": "PR Review Request",
+                "blocks": [
+                    {
+                        "type": "divider"
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "*You have a PR review Request From:*"
+                        }
+                    },
+                    {
+                        "type": "divider"
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "*<fakeLink.toUserProfiles.com|PB-2567: Enable/Disable Email Signup>* \n\n Author: `Sibin M S` \t Reviewer: `Abdul`"
+                        },
+                        "accessory": {
+                            "type": "image",
+                            "image_url": "https://raw.githubusercontent.com/quintessence/slack-icons/master/images/github-logo-slack-icon.png",
+                            "alt_text": "github"
+                        }
+                    },
+                    {
+                        "type": "divider"
+                    },
+                ]
+            }
+            byte_length = str(sys.getsizeof(slack_data))
+            headers = {'Content-Type': "application/json", 'Content-Length': byte_length}
+            response = requests.post(self.SLACK_WEBHOOK_URL, data=json.dumps(slack_data), headers=headers)
 
         return Response(data="success", status=status.HTTP_200_OK)
