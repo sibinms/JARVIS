@@ -17,12 +17,12 @@ class GithubWebhookAPIView(APIView):
     {
     "action":
     "pr":
-    "pr_title":
+    "title":
     "reviewers":
     "created_by":
     }
     """
-    PR_ACTIONS = ["opened", "reopened", "review_requested"]
+    PR_ACTIONS = ["review_requested"]
     SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/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"
 
     def get_pull_request_data(self, request):
@@ -37,6 +37,8 @@ class GithubWebhookAPIView(APIView):
             pr_created_user = pull_request.get("user", {})
             created_by = pr_created_user.get("login", "")
             pull_request_data['created_by'] = created_by
+            pr_title = pull_request.get('title', "")
+            pull_request_data['title'] = pr_title
             requested_reviewers = pull_request.get("requested_reviewers", [])
             reviewers = []
             for requested_reviewer in requested_reviewers:
@@ -46,6 +48,8 @@ class GithubWebhookAPIView(APIView):
                 pull_request_data['reviewers'] = reviewers
                 return pull_request_data, True
         return pull_request_data, False
+
+    # def get_slack_data(self, pull_request_data):
 
     def post(self, request, *args, **kwargs):
         # pprint(request.data)
@@ -64,7 +68,7 @@ class GithubWebhookAPIView(APIView):
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "*You have a PR review Request From:*"
+                            "text": "* @sibin.ms You have a PR review Request From:*"
                         }
                     },
                     {
@@ -74,7 +78,8 @@ class GithubWebhookAPIView(APIView):
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "*<fakeLink.toUserProfiles.com|PB-2567: Enable/Disable Email Signup>* \n\n Author: `Sibin M S` \t Reviewer: `Abdul`"
+                            "text": "*<fakeLink.toUserProfiles.com|PB-2567: Enable/Disable Email Signup>* "
+                                    "\n\n Author: `Sibin M S` \t Reviewer: `Abdul`"
                         },
                         "accessory": {
                             "type": "image",
