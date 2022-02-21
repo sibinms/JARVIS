@@ -9,6 +9,7 @@ from rest_framework import status
 
 
 # Create your views here.
+from slackbot.constants import USER_NAMES
 
 
 class GithubWebhookAPIView(APIView):
@@ -49,49 +50,57 @@ class GithubWebhookAPIView(APIView):
                 return pull_request_data, True
         return pull_request_data, False
 
-    # def get_slack_data(self, pull_request_data):
+    def get_slack_data(self, pull_request_data):
+        created_user_tag = USER_NAMES.get(pull_request_data['created_by'], "")
+        reviewers = pull_request_data.get("reviewers", [])
+        reviewers_tag = ""
+        for reviewer in reviewers:
+            reviewers_tag += f"{USER_NAMES.get(reviewer)}"
+        print(reviewers_tag)
+        slack_data = {
+            "username": "JARVIS",
+            # "channel" : "#somerandomcahnnel",
+            "text": "PR Review Request",
+            "blocks": [
+                {
+                    "type": "divider"
+                },
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"*{reviewers_tag} You have a PR review Request From {created_user_tag}:*"
+                    }
+                },
+                {
+                    "type": "divider"
+                },
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"*<{pull_request_data['pr']}|{pull_request_data['title']}>* \n\n Author: `{created_user_tag}` \t Reviewer: `{reviewers_tag}`"
+                    },
+                    "accessory": {
+                        "type": "image",
+                        "image_url": "https://raw.githubusercontent.com/quintessence/slack-icons/master/images/github-logo-slack-icon.png",
+                        "alt_text": "github"
+                    }
+                },
+                {
+                    "type": "divider"
+                },
+            ]
+        }
+        return slack_data
 
     def post(self, request, *args, **kwargs):
         # pprint(request.data)
         pull_request_data, is_valid_pr = self.get_pull_request_data(request)
         if is_valid_pr:
             pprint(pull_request_data)
-            slack_data = {
-                "username": "JARVIS",
-                # "channel" : "#somerandomcahnnel",
-                "text": "PR Review Request",
-                "blocks": [
-                    {
-                        "type": "divider"
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "* @sibin.ms You have a PR review Request From:*"
-                        }
-                    },
-                    {
-                        "type": "divider"
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "*<fakeLink.toUserProfiles.com|PB-2567: Enable/Disable Email Signup>* "
-                                    "\n\n Author: `Sibin M S` \t Reviewer: `Abdul`"
-                        },
-                        "accessory": {
-                            "type": "image",
-                            "image_url": "https://raw.githubusercontent.com/quintessence/slack-icons/master/images/github-logo-slack-icon.png",
-                            "alt_text": "github"
-                        }
-                    },
-                    {
-                        "type": "divider"
-                    },
-                ]
-            }
+            slack_data = self.get_slack_data(pull_request_data)
+            print(slack_data)
             byte_length = str(sys.getsizeof(slack_data))
             headers = {'Content-Type': "application/json", 'Content-Length': byte_length}
             response = requests.post(self.SLACK_WEBHOOK_URL, data=json.dumps(slack_data), headers=headers)
