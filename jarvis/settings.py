@@ -123,3 +123,4 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+PR_REVIEW_SLACK_WEBHOOK = "https://hooks.slack.com/services/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"
