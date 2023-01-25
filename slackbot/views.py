@@ -1,4 +1,3 @@
-from pprint import pprint
 import json
 import sys
 import requests
@@ -8,17 +7,19 @@ from rest_framework.response import Response
 from rest_framework import status
 from slackbot.utils import (
     get_slack_rendered_message,
-    USER_NAMES
+    USER_NAMES,
+    slack_message_already_sent,
 )
 
 # Create your views here.
 
 
-class GithubWebhookAPIView(APIView):
+class GithubPRWebhookAPIView(APIView):
     """
-    API for handling events from Github
+    API for handling PR review request events from Github
     {
     "action":
+    "pr_id
     "pr":
     "title":
     "reviewers":
@@ -29,12 +30,17 @@ class GithubWebhookAPIView(APIView):
 
     def get_pull_request_data(self, request):
         pull_request_data = {}
-        action = request.data.get("action", "")
+        payload = json.loads(request.data.get("payload", {}))
+        action = payload.get("action", "")
         if action in self.PR_ACTIONS:
             pull_request_data["action"] = action
 
+            # get PR ID
+            pr_id = payload.get("number", "")
+            pull_request_data['pr_id'] = pr_id
+
             # get PR URL
-            pull_request = request.data.get("pull_request", {})
+            pull_request = payload.get("pull_request", {})
             pr_url = pull_request.get("html_url", "")
             pull_request_data['pr'] = pr_url
 
@@ -68,7 +74,7 @@ class GithubWebhookAPIView(APIView):
         reviewers = pull_request_data.get("reviewers", [])
         reviewers_tag = ""
         for reviewer in reviewers:
-            reviewers_tag += f"{USER_NAMES.get(reviewer)}"
+            reviewers_tag += f" {USER_NAMES.get(reviewer)}"
 
         return reviewers_tag
 
@@ -85,11 +91,20 @@ class GithubWebhookAPIView(APIView):
     def post(self, request, *args, **kwargs):
         pull_request_data, is_valid_pr = self.get_pull_request_data(request)
         if is_valid_pr:
-            pprint(pull_request_data)
+            is_slack_message_already_sent = slack_message_already_sent(
+                pull_request_data
+            )
+
+            if is_slack_message_already_sent:
+                return Response(data="success", status=status.HTTP_200_OK)
+
             slack_data = self.get_slack_message(pull_request_data)
-            print(slack_data)
             byte_length = str(sys.getsizeof(slack_data))
             headers = {'Content-Type': "application/json", 'Content-Length': byte_length}
-            response = requests.post(settings.PR_REVIEW_SLACK_WEBHOOK, data=json.dumps(slack_data), headers=headers)
+            requests.post(
+                settings.PR_REVIEW_SLACK_WEBHOOK,
+                data=json.dumps(slack_data),
+                headers=headers
+            )
 
         return Response(data="success", status=status.HTTP_200_OK)
